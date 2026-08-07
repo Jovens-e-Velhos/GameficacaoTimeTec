@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gamificação WM · Painel de Resultados</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#F3F4F7;
+    --surface:#FFFFFF;
+    --surface-alt:#EBEDF2;
+    --ink:#10182B;
+    --ink-soft:#5B6478;
+    --ink-faint:#8B93A6;
+    --border:#E1E4EB;
+    --red:#C8102E;
+    --red-dark:#8E0B21;
+    --red-tint:#FCE8EB;
+    --navy:#0B1F5C;
+    --gold:#DA9F1E;
+    --silver:#9AA3B2;
+    --bronze:#B5652C;
+    --green:#1B8A5A;
+    --green-tint:#E7F5EE;
+    --radius:14px;
+    --shadow:0 1px 2px rgba(16,24,43,.04), 0 8px 24px -12px rgba(16,24,43,.12);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  h1,h2,h3{font-family:'Space Grotesk',sans-serif; margin:0; letter-spacing:-.01em;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  a{color:inherit;}
+
+  /* ===== Header ===== */
+  .topbar{
+    background:var(--ink);
+    background:linear-gradient(120deg,#0C1330 0%, #151F42 55%, #1A0E1E 100%);
+    color:#fff;
+    padding:28px 32px 26px;
+    position:relative;
+    overflow:hidden;
+  }
+  .topbar::after{
+    content:"";
+    position:absolute; right:-60px; top:-80px;
+    width:280px; height:280px; border-radius:50%;
+    background:radial-gradient(circle, rgba(200,16,46,.55), transparent 70%);
+    filter:blur(2px);
+  }
+  .topbar-inner{max-width:1180px; margin:0 auto; position:relative; z-index:1;}
+  .eyebrow{
+    text-transform:uppercase; font-size:11px; letter-spacing:.14em; font-weight:600;
+    color:#F3A5B1; display:flex; align-items:center; gap:8px; margin-bottom:8px;
+  }
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--red);display:inline-block;}
+  .topbar h1{font-size:28px; font-weight:700;}
+  .topbar p{margin:8px 0 0; color:#B7BEDB; font-size:14px; max-width:640px; line-height:1.5;}
+
+  /* ===== Layout ===== */
+  .wrap{max-width:1180px; margin:0 auto; padding:28px 32px 80px;}
+  .grid{display:grid; grid-template-columns: 340px 1fr; gap:22px; align-items:start;}
+  @media (max-width:900px){ .grid{grid-template-columns:1fr;} }
+
+  .card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:20px;
+  }
+  .card + .card{margin-top:18px;}
+  .card h2{font-size:15px; font-weight:600;}
+  .card h2 .num{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:20px;height:20px;border-radius:6px;background:var(--red);color:#fff;
+    font-size:11px; font-family:'IBM Plex Mono',monospace; margin-right:9px;
+  }
+  .card .desc{font-size:12.5px; color:var(--ink-soft); margin:6px 0 14px; line-height:1.5;}
+
+  /* ===== Upload rows ===== */
+  .upload-row{
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border:1px dashed var(--border); border-radius:10px;
+    margin-bottom:8px; background:var(--surface-alt);
+    transition:border-color .15s;
+  }
+  .upload-row.filled{border-style:solid; border-color:var(--green); background:var(--green-tint);}
+  .upload-row .label{font-size:12.5px; font-weight:600; width:64px; flex-shrink:0; color:var(--ink-soft);}
+  .upload-row.filled .label{color:var(--green);}
+  .upload-row input[type=file]{display:none;}
+  .upload-row .filebtn{
+    font-size:12px; font-weight:600; padding:6px 10px; border-radius:7px;
+    background:var(--surface); border:1px solid var(--border); cursor:pointer;
+    color:var(--ink); white-space:nowrap;
+  }
+  .upload-row .filename{
+    font-size:11.5px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis;
+    white-space:nowrap; flex:1; min-width:0;
+  }
+  .upload-row.filled .filename{color:var(--green); font-weight:500;}
+
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    background:var(--red); color:#fff; border:none; border-radius:9px;
+    font-family:'Inter',sans-serif; font-size:13px; font-weight:600;
+    padding:10px 14px; cursor:pointer; width:100%;
+    transition:background .15s, transform .1s;
+  }
+  .btn:hover{background:var(--red-dark);}
+  .btn:active{transform:scale(.98);}
+  .btn.ghost{background:var(--surface); color:var(--ink); border:1px solid var(--border);}
+  .btn.ghost:hover{background:var(--surface-alt);}
+  .btn:disabled{opacity:.45; cursor:not-allowed;}
+  .btn-row{display:flex; gap:8px; margin-top:6px;}
+
+  .qlist{
+    display:flex; flex-wrap:wrap; gap:6px; margin-top:4px;
+  }
+  .qchip{
+    font-size:11px; background:var(--surface-alt); border:1px solid var(--border);
+    padding:4px 8px; border-radius:20px; color:var(--ink-soft);
+  }
+  .qchip.matched{background:var(--green-tint); color:var(--green); border-color:transparent;}
+  .qchip.unmatched{background:var(--red-tint); color:var(--red-dark); border-color:transparent;}
+
+  .status-line{
+    display:flex; align-items:center; gap:8px; font-size:12px; color:var(--ink-soft); margin-top:10px;
+  }
+  .status-dot{width:7px;height:7px;border-radius:50%;background:var(--ink-faint);}
+  .status-dot.ok{background:var(--green);}
+  .status-dot.warn{background:var(--gold);}
+
+  /* ===== Empty state ===== */
+  .empty{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding:70px 30px; color:var(--ink-soft);
+    border:1px dashed var(--border); border-radius:var(--radius); background:var(--surface);
+  }
+  .empty h3{color:var(--ink); font-size:17px; margin-bottom:6px;}
+  .empty p{font-size:13px; max-width:380px; line-height:1.6;}
+
+  /* ===== KPIs ===== */
+  .kpis{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px;}
+  @media (max-width:700px){.kpis{grid-template-columns:repeat(2,1fr);}}
+  .kpi{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; box-shadow:var(--shadow);}
+  .kpi .v{font-family:'IBM Plex Mono',monospace; font-size:26px; font-weight:600; color:var(--navy);}
+  .kpi .l{font-size:11.5px; color:var(--ink-soft); margin-top:4px; text-transform:uppercase; letter-spacing:.04em;}
+
+  /* ===== Podium (signature element) ===== */
+  .podium-wrap{
+    background:linear-gradient(180deg,#151F42 0%, #0C1330 100%);
+    border-radius:var(--radius); padding:26px 22px 0; margin-bottom:20px; position:relative; overflow:hidden;
+  }
+  .podium-title{color:#fff; font-size:15px; font-weight:600; margin-bottom:18px; display:flex; justify-content:space-between; align-items:center;}
+  .podium-title span.tag{font-size:11px; font-weight:500; color:#9BA3C4; font-family:'IBM Plex Mono',monospace;}
+  .podium{display:flex; align-items:flex-end; justify-content:center; gap:14px; padding-bottom:0;}
+  .podium-slot{display:flex; flex-direction:column; align-items:center; width:150px;}
+  .podium-medal{
+    width:38px;height:38px;border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:15px; color:#1A1300; margin-bottom:8px;
+  }
+  .podium-name{color:#fff; font-size:12.5px; font-weight:600; text-align:center; line-height:1.3; margin-bottom:2px;}
+  .podium-filial{color:#9BA3C4; font-size:10.5px; margin-bottom:8px; text-align:center;}
+  .podium-bar{
+    width:100%; border-radius:10px 10px 0 0;
+    display:flex; align-items:flex-start; justify-content:center; padding-top:10px;
+    font-family:'IBM Plex Mono',monospace; font-weight:600; color:#fff; font-size:15px;
+  }
+  .slot-1 .podium-bar{height:120px; background:linear-gradient(180deg,#F0C24B,#DA9F1E);}
+  .slot-2 .podium-bar{height:88px; background:linear-gradient(180deg,#C3CAD8,#9AA3B2);}
+  .slot-3 .podium-bar{height:64px; background:linear-gradient(180deg,#D08A54,#B5652C);}
+  .slot-1 .podium-medal{background:#F0C24B;}
+  .slot-2 .podium-medal{background:#C3CAD8;}
+  .slot-3 .podium-medal{background:#D08A54;}
+
+  /* ===== Tabs ===== */
+  .tabs{display:flex; gap:4px; margin-bottom:16px; border-bottom:1px solid var(--border);}
+  .tab{
+    font-size:13px; font-weight:600; color:var(--ink-soft); padding:10px 4px; margin-right:22px;
+    cursor:pointer; border-bottom:2px solid transparent; user-select:none;
+  }
+  .tab.active{color:var(--red); border-bottom-color:var(--red);}
+  .tabpanel{display:none;}
+  .tabpanel.active{display:block;}
+
+  /* ===== Tables ===== */
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  thead th{
+    text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.05em;
+    color:var(--ink-soft); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--border);
+    background:var(--surface-alt);
+  }
+  thead th:first-child{border-radius:8px 0 0 0;}
+  thead th:last-child{border-radius:0 8px 0 0;}
+  tbody td{padding:10px 10px; border-bottom:1px solid var(--border); vertical-align:middle;}
+  tbody tr:hover{background:var(--surface-alt);}
+  tbody tr:last-child td{border-bottom:none;}
+  .rank{font-family:'IBM Plex Mono',monospace; font-weight:600; color:var(--ink-soft); width:26px; display:inline-block;}
+  .rank.r1{color:var(--gold);} .rank.r2{color:var(--silver);} .rank.r3{color:var(--bronze);}
+  .name-cell .nm{font-weight:600;}
+  .name-cell .em{font-size:11px; color:var(--ink-faint);}
+  .pill{
+    display:inline-block; font-size:11px; font-weight:600; padding:2px 8px; border-radius:20px;
+    background:var(--surface-alt); color:var(--ink-soft);
+  }
+  .score-total{font-family:'IBM Plex Mono',monospace; font-weight:700; color:var(--red); font-size:14px;}
+  .week-pt{font-family:'IBM Plex Mono',monospace; color:var(--ink-soft); font-size:12.5px;}
+  .week-pt.zero{color:var(--ink-faint); opacity:.5;}
+  .bar-cell{display:flex; align-items:center; gap:8px;}
+  .bar-track{flex:1; height:6px; background:var(--surface-alt); border-radius:4px; overflow:hidden;}
+  .bar-fill{height:100%; background:var(--red); border-radius:4px;}
+
+  .chart-card{margin-top:18px;}
+  .chart-box{position:relative; height:300px;}
+
+  .section-title{font-size:14px; font-weight:600; margin:26px 0 12px; display:flex; align-items:center; gap:8px;}
+  .section-title .line{flex:1; height:1px; background:var(--border);}
+
+  footer{text-align:center; font-size:11.5px; color:var(--ink-faint); padding:30px 0 10px;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="eyebrow"><span class="dot"></span> WM · Temas Técnicos</div>
+    <h1>Painel de Gamificação</h1>
+    <p>Envie as 4 planilhas semanais do Microsoft Forms e o gabarito de respostas corretas. O painel calcula automaticamente a pontuação por pessoa e por filial, e consolida o resultado do mês — tudo no seu navegador, nenhum dado é enviado a um servidor.</p>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="grid">
+
+    <!-- ============ LEFT: INPUTS ============ -->
+    <div>
+      <div class="card">
+        <h2><span class="num">1</span>Respostas semanais</h2>
+        <div class="desc">Um arquivo .xlsx exportado do Forms para cada semana do mês (colunas fixas: ID, Email, Nome, Filial + perguntas da semana).</div>
+        <div id="weekUploads"></div>
+      </div>
+
+      <div class="card">
+        <h2><span class="num">2</span>Gabarito</h2>
+        <div class="desc">Planilha com a resposta correta de cada pergunta encontrada nas respostas. Baixe o modelo já preenchido com as perguntas detectadas.</div>
+        <div id="questionPreview" class="qlist"></div>
+        <div class="btn-row">
+          <button class="btn ghost" id="btnTemplate" disabled>Baixar modelo do gabarito</button>
+        </div>
+        <div class="upload-row" id="gabRow" style="margin-top:10px;">
+          <span class="label">Gabarito</span>
+          <label class="filebtn" for="gabInput">Selecionar</label>
+          <input type="file" id="gabInput" accept=".xlsx,.xls">
+          <span class="filename" id="gabFileName">Nenhum arquivo</span>
+        </div>
+        <div class="status-line" id="gabStatus"><span class="status-dot"></span>Aguardando planilhas semanais</div>
+      </div>
+
+      <div class="card">
+        <h2><span class="num">3</span>Resultado</h2>
+        <div class="desc">Com as 4 semanas e o gabarito carregados, o painel calcula automaticamente.</div>
+        <div class="btn-row">
+          <button class="btn" id="btnExport" disabled>Exportar consolidado (.xlsx)</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn ghost" id="btnReset">Limpar tudo</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ RIGHT: RESULTS ============ -->
+    <div id="resultsArea">
+      <div class="empty" id="emptyState">
+        <h3>Nenhum resultado ainda</h3>
+        <p>Envie ao menos um arquivo semanal para ver as perguntas detectadas, depois o gabarito para calcular a pontuação por pessoa e por filial.</p>
+      </div>
+
+      <div id="results" style="display:none;">
+
+        <div class="kpis" id="kpiRow"></div>
+
+        <div class="podium-wrap">
+          <div class="podium-title">Top 3 do mês <span class="tag" id="podiumMonthTag">CONSOLIDADO</span></div>
+          <div class="podium" id="podium"></div>
+        </div>
+
+        <div class="tabs">
+          <div class="tab active" data-tab="individual">Ranking individual</div>
+          <div class="tab" data-tab="filial">Por filial</div>
+          <div class="tab" data-tab="semanal">Detalhe semanal</div>
+        </div>
+
+        <div class="tabpanel active" id="tab-individual">
+          <div class="card">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th><th>Pessoa</th><th>Filial</th>
+                  <th>Sem 1</th><th>Sem 2</th><th>Sem 3</th><th>Sem 4</th>
+                  <th>Participação</th><th>Total</th>
+                </tr>
+              </thead>
+              <tbody id="tblIndividual"></tbody>
+            </table>
+          </div>
+          <div class="card chart-card">
+            <h2>Top 10 pontuação individual</h2>
+            <div class="chart-box"><canvas id="chartIndividual"></canvas></div>
+          </div>
+        </div>
+
+        <div class="tabpanel" id="tab-filial">
+          <div class="card">
+            <table>
+              <thead>
+                <tr>
+                  <th>Filial</th><th>Participantes</th><th>Pontos totais</th>
+                  <th>Média por pessoa</th><th>Taxa de participação</th>
+                </tr>
+              </thead>
+              <tbody id="tblFilial"></tbody>
+            </table>
+          </div>
+          <div class="card chart-card">
+            <h2>Média de pontos por filial</h2>
+            <div class="chart-box"><canvas id="chartFilial"></canvas></div>
+          </div>
+        </div>
+
+        <div class="tabpanel" id="tab-semanal">
+          <div class="card chart-card">
+            <h2>Pontuação total por semana</h2>
+            <div class="chart-box"><canvas id="chartSemanal"></canvas></div>
+          </div>
+          <div class="card">
+            <h2>Participação por semana</h2>
+            <table>
+              <thead><tr><th>Semana</th><th>Arquivo</th><th>Respondentes</th><th>Perguntas</th><th>Pontos totais</th></tr></thead>
+              <tbody id="tblSemanal"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <footer>Painel de Gamificação · Processamento 100% local no navegador · DSV</footer>
+</div>
+
+<script>
+/* ============================================================
+   CONFIG
+   ============================================================ */
+const FIXED_COLS = ['ID','Hora de início','Hora de conclusão','Email','Nome','Hora da última modificação','Filial'];
+const WEEK_LABELS = ['Semana 1','Semana 2','Semana 3','Semana 4'];
+const norm = s => (s===null||s===undefined) ? '' : String(s).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+
+let weeks = [null,null,null,null];   // {fileName, rows:[...]}
+let gabarito = null;                 // {fileName, map:{questionNormalized: correctAnswerRaw}}
+let charts = {};
+
+/* ============================================================
+   BUILD WEEK UPLOAD ROWS
+   ============================================================ */
+const weekUploadsEl = document.getElementById('weekUploads');
+WEEK_LABELS.forEach((label, i) => {
+  const row = document.createElement('div');
+  row.className = 'upload-row';
+  row.id = 'weekRow'+i;
+  row.innerHTML = `
+    <span class="label">${label}</span>
+    <label class="filebtn" for="weekInput${i}">Selecionar</label>
+    <input type="file" id="weekInput${i}" accept=".xlsx,.xls">
+    <span class="filename" id="weekFileName${i}">Nenhum arquivo</span>`;
+  weekUploadsEl.appendChild(row);
+  document.getElementById('weekInput'+i).addEventListener('change', e => handleWeekFile(e, i));
+});
+document.getElementById('gabInput').addEventListener('change', handleGabFile);
+document.getElementById('btnTemplate').addEventListener('click', downloadTemplate);
+document.getElementById('btnExport').addEventListener('click', exportConsolidated);
+document.getElementById('btnReset').addEventListener('click', () => location.reload());
+
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.tabpanel').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('tab-'+t.dataset.tab).classList.add('active');
+  });
+});
+
+/* ============================================================
+   FILE PARSING
+   ============================================================ */
+function readWorkbook(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try{
+        const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array', cellDates:true});
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, {defval:null});
+        resolve(rows);
+      }catch(err){ reject(err); }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+async function handleWeekFile(e, i){
+  const file = e.target.files[0];
+  if(!file) return;
+  try{
+    const rows = await readWorkbook(file);
+    weeks[i] = {fileName:file.name, rows};
+    const row = document.getElementById('weekRow'+i);
+    row.classList.add('filled');
+    document.getElementById('weekFileName'+i).textContent = file.name + ' · ' + rows.length + ' respostas';
+  }catch(err){
+    alert('Não foi possível ler "'+file.name+'". Verifique se é um .xlsx válido exportado do Forms.');
+  }
+  refreshQuestionPreview();
+  tryCompute();
+}
+
+async function handleGabFile(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  try{
+    const rows = await readWorkbook(file);
+    const map = {};
+    rows.forEach(r => {
+      const keys = Object.keys(r);
+      const qKey = keys.find(k => norm(k).includes('pergunta')) || keys[0];
+      const aKey = keys.find(k => norm(k).includes('resposta')) || keys[1];
+      if(qKey && r[qKey]!==null){
+        map[norm(r[qKey])] = r[aKey];
+      }
+    });
+    gabarito = {fileName:file.name, map};
+    document.getElementById('gabRow').classList.add('filled');
+    document.getElementById('gabFileName').textContent = file.name + ' · ' + Object.keys(map).length + ' respostas corretas';
+  }catch(err){
+    alert('Não foi possível ler o gabarito. Verifique se é um .xlsx com colunas "Pergunta" e "Resposta Correta".');
+  }
+  refreshQuestionPreview();
+  tryCompute();
+}
+
+/* ============================================================
+   QUESTION DETECTION + GABARITO TEMPLATE
+   ============================================================ */
+function detectedQuestions(){
+  const set = new Set();
+  weeks.forEach(w => {
+    if(!w) return;
+    w.rows.forEach(r => Object.keys(r).forEach(k => { if(!FIXED_COLS.includes(k)) set.add(k); }));
+  });
+  return Array.from(set);
+}
+
+function refreshQuestionPreview(){
+  const qs = detectedQuestions();
+  const el = document.getElementById('questionPreview');
+  const btn = document.getElementById('btnTemplate');
+  const gabStatus = document.getElementById('gabStatus');
+
+  if(qs.length===0){
+    el.innerHTML = '<span style="font-size:12px;color:var(--ink-faint);">Nenhuma pergunta detectada ainda.</span>';
+    btn.disabled = true;
+    gabStatus.innerHTML = '<span class="status-dot"></span>Aguardando planilhas semanais';
+    return;
+  }
+  btn.disabled = false;
+  el.innerHTML = qs.map(q => {
+    const has = gabarito && gabarito.map[norm(q)] !== undefined;
+    return `<span class="qchip ${gabarito ? (has?'matched':'unmatched') : ''}">${q}</span>`;
+  }).join('');
+
+  if(!gabarito){
+    gabStatus.innerHTML = `<span class="status-dot warn"></span>${qs.length} pergunta(s) detectada(s) — baixe o modelo e envie o gabarito`;
+  }else{
+    const missing = qs.filter(q => gabarito.map[norm(q)]===undefined).length;
+    if(missing===0){
+      gabStatus.innerHTML = `<span class="status-dot ok"></span>Gabarito cobre todas as ${qs.length} perguntas`;
+    }else{
+      gabStatus.innerHTML = `<span class="status-dot warn"></span>${missing} pergunta(s) sem resposta correta cadastrada`;
+    }
+  }
+}
+
+function downloadTemplate(){
+  const qs = detectedQuestions();
+  const data = qs.map(q => ({'Pergunta': q, 'Resposta Correta': ''}));
+  const ws = XLSX.utils.json_to_sheet(data);
+  ws['!cols'] = [{wch:60},{wch:30}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Gabarito');
+  XLSX.writeFile(wb, 'gabarito_modelo.xlsx');
+}
+
+/* ============================================================
+   SCORING
+   ============================================================ */
+function tryCompute(){
+  const anyWeek = weeks.some(w => w!==null);
+  if(!anyWeek || !gabarito){
+    document.getElementById('emptyState').style.display = 'flex';
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('btnExport').disabled = true;
+    return;
+  }
+  const data = computeScores();
+  renderResults(data);
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('btnExport').disabled = false;
+}
+
+function computeScores(){
+  const people = {};      // email -> person
+  const weekStats = WEEK_LABELS.map((label,i) => ({
+    label, fileName: weeks[i]?weeks[i].fileName:'—', respondents:0, questions:0, totalPoints:0
+  }));
+
+  weeks.forEach((w, wi) => {
+    if(!w) return;
+    const qCols = Object.keys(w.rows[0]||{}).filter(k => !FIXED_COLS.includes(k));
+    weekStats[wi].questions = qCols.length;
+
+    w.rows.forEach(row => {
+      const emailRaw = row['Email'];
+      if(!emailRaw) return;
+      const email = String(emailRaw).trim().toLowerCase();
+      if(!people[email]){
+        people[email] = {
+          email, nome: row['Nome'] || email, filial: row['Filial'] || 'Não informado',
+          weekly: [0,0,0,0], weeklyPossible:[0,0,0,0], participated:[false,false,false,false]
+        };
+      }
+      const p = people[email];
+      if(row['Nome']) p.nome = row['Nome'];
+      if(row['Filial']) p.filial = row['Filial'];
+      p.participated[wi] = true;
+      weekStats[wi].respondents += 1;
+
+      qCols.forEach(col => {
+        const answer = row[col];
+        const correct = gabarito.map[norm(col)];
+        if(correct===undefined) return; // pergunta sem gabarito, ignorada na pontuação
+        p.weeklyPossible[wi] += 1;
+        if(answer!==null && norm(answer)===norm(correct)){
+          p.weekly[wi] += 1;
+          weekStats[wi].totalPoints += 1;
+        }
+      });
+    });
+  });
+
+  const peopleArr = Object.values(people).map(p => {
+    const total = p.weekly.reduce((a,b)=>a+b,0);
+    const totalPossible = p.weeklyPossible.reduce((a,b)=>a+b,0);
+    const weeksParticipated = p.participated.filter(Boolean).length;
+    return {...p, total, totalPossible, weeksParticipated};
+  }).sort((a,b) => b.total - a.total);
+
+  const filiais = {};
+  peopleArr.forEach(p => {
+    if(!filiais[p.filial]) filiais[p.filial] = {filial:p.filial, participants:0, totalPoints:0, participationSum:0};
+    const f = filiais[p.filial];
+    f.participants += 1;
+    f.totalPoints += p.total;
+    f.participationSum += p.weeksParticipated / 4;
+  });
+  const filiaisArr = Object.values(filiais).map(f => ({
+    ...f,
+    avgPoints: f.totalPoints / f.participants,
+    avgParticipation: f.participationSum / f.participants
+  })).sort((a,b) => b.avgPoints - a.avgPoints);
+
+  return {people: peopleArr, filiais: filiaisArr, weekStats};
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function renderResults(data){
+  const {people, filiais, weekStats} = data;
+  const maxTotal = Math.max(1, ...people.map(p=>p.total));
+
+  // KPIs
+  const totalParticipants = people.length;
+  const totalFiliais = filiais.length;
+  const avgScore = people.length ? (people.reduce((a,p)=>a+p.total,0)/people.length) : 0;
+  const bestWeek = weekStats.reduce((best,w)=> w.totalPoints>best.totalPoints?w:best, weekStats[0]);
+  document.getElementById('kpiRow').innerHTML = `
+    <div class="kpi"><div class="v">${totalParticipants}</div><div class="l">Participantes no mês</div></div>
+    <div class="kpi"><div class="v">${totalFiliais}</div><div class="l">Filiais</div></div>
+    <div class="kpi"><div class="v">${avgScore.toFixed(1)}</div><div class="l">Média de pontos / pessoa</div></div>
+    <div class="kpi"><div class="v">${bestWeek.label.replace('Semana','S')}</div><div class="l">Semana de maior pontuação</div></div>
+  `;
+
+  // Podium
+  const podiumEl = document.getElementById('podium');
+  const top3 = people.slice(0,3);
+  const order = [1,0,2]; // display 2nd,1st,3rd
+  podiumEl.innerHTML = order.filter(idx=>top3[idx]).map(idx => {
+    const p = top3[idx];
+    const rank = idx+1;
+    const medal = rank===1?'🥇':rank===2?'🥈':'🥉';
+    return `<div class="podium-slot slot-${rank}">
+      <div class="podium-medal">${rank}</div>
+      <div class="podium-name">${escapeHtml(p.nome)}</div>
+      <div class="podium-filial">${escapeHtml(p.filial)}</div>
+      <div class="podium-bar">${p.total} pts</div>
+    </div>`;
+  }).join('');
+  if(top3.length===0) podiumEl.innerHTML = '<div style="color:#9BA3C4;font-size:13px;">Sem dados suficientes ainda.</div>';
+
+  // Individual table
+  document.getElementById('tblIndividual').innerHTML = people.map((p,i) => {
+    const rankClass = i===0?'r1':i===1?'r2':i===2?'r3':'';
+    const weekCells = p.weekly.map((v,wi) => {
+      const has = p.participated[wi];
+      return `<td><span class="week-pt ${has?'':'zero'} mono">${has? v : '—'}</span></td>`;
+    }).join('');
+    return `<tr>
+      <td><span class="rank ${rankClass}">${i+1}</span></td>
+      <td class="name-cell"><div class="nm">${escapeHtml(p.nome)}</div><div class="em">${escapeHtml(p.email)}</div></td>
+      <td><span class="pill">${escapeHtml(p.filial)}</span></td>
+      ${weekCells}
+      <td>${p.weeksParticipated}/4</td>
+      <td><span class="score-total">${p.total}</span></td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="9" style="text-align:center;color:var(--ink-faint);padding:24px;">Sem respondentes.</td></tr>`;
+
+  // Filial table
+  document.getElementById('tblFilial').innerHTML = filiais.map(f => {
+    const pct = Math.round(f.avgParticipation*100);
+    return `<tr>
+      <td><strong>${escapeHtml(f.filial)}</strong></td>
+      <td>${f.participants}</td>
+      <td class="mono">${f.totalPoints}</td>
+      <td class="mono">${f.avgPoints.toFixed(1)}</td>
+      <td><div class="bar-cell"><div class="bar-track"><div class="bar-fill" style="width:${pct}%;"></div></div><span class="mono" style="font-size:11.5px;">${pct}%</span></div></td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="5" style="text-align:center;color:var(--ink-faint);padding:24px;">Sem dados.</td></tr>`;
+
+  // Weekly table
+  document.getElementById('tblSemanal').innerHTML = weekStats.map(w => `
+    <tr>
+      <td><strong>${w.label}</strong></td>
+      <td style="color:var(--ink-soft);font-size:12px;">${escapeHtml(w.fileName)}</td>
+      <td>${w.respondents}</td>
+      <td>${w.questions}</td>
+      <td class="mono">${w.totalPoints}</td>
+    </tr>`).join('');
+
+  renderCharts(people, filiais, weekStats);
+}
+
+function renderCharts(people, filiais, weekStats){
+  Object.values(charts).forEach(c => c && c.destroy());
+
+  const top10 = people.slice(0,10);
+  charts.individual = new Chart(document.getElementById('chartIndividual'), {
+    type:'bar',
+    data:{
+      labels: top10.map(p=>p.nome),
+      datasets:[{ label:'Pontos', data: top10.map(p=>p.total), backgroundColor:'#C8102E', borderRadius:6, maxBarThickness:34 }]
+    },
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{ x:{beginAtZero:true, grid:{color:'#EEF0F4'}}, y:{grid:{display:false}} }
+    }
+  });
+
+  charts.filial = new Chart(document.getElementById('chartFilial'), {
+    type:'bar',
+    data:{
+      labels: filiais.map(f=>f.filial),
+      datasets:[{ label:'Média de pontos', data: filiais.map(f=>Number(f.avgPoints.toFixed(2))), backgroundColor:'#0B1F5C', borderRadius:6, maxBarThickness:44 }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{ y:{beginAtZero:true, grid:{color:'#EEF0F4'}}, x:{grid:{display:false}} }
+    }
+  });
+
+  charts.semanal = new Chart(document.getElementById('chartSemanal'), {
+    type:'line',
+    data:{
+      labels: weekStats.map(w=>w.label),
+      datasets:[{
+        label:'Pontos totais', data: weekStats.map(w=>w.totalPoints),
+        borderColor:'#C8102E', backgroundColor:'rgba(200,16,46,.12)', fill:true, tension:.35, pointRadius:4, pointBackgroundColor:'#C8102E'
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{ y:{beginAtZero:true, grid:{color:'#EEF0F4'}}, x:{grid:{display:false}} }
+    }
+  });
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+/* ============================================================
+   EXPORT CONSOLIDADO
+   ============================================================ */
+function exportConsolidated(){
+  const {people, filiais, weekStats} = computeScores();
+
+  const wsPeople = XLSX.utils.json_to_sheet(people.map((p,i) => ({
+    'Posição': i+1, 'Nome': p.nome, 'Email': p.email, 'Filial': p.filial,
+    'Semana 1': p.weekly[0], 'Semana 2': p.weekly[1], 'Semana 3': p.weekly[2], 'Semana 4': p.weekly[3],
+    'Semanas participadas': p.weeksParticipated, 'Total de pontos': p.total
+  })));
+  const wsFilial = XLSX.utils.json_to_sheet(filiais.map(f => ({
+    'Filial': f.filial, 'Participantes': f.participants, 'Pontos totais': f.totalPoints,
+    'Média por pessoa': Number(f.avgPoints.toFixed(2)), 'Taxa de participação': Math.round(f.avgParticipation*100)+'%'
+  })));
+  const wsWeek = XLSX.utils.json_to_sheet(weekStats.map(w => ({
+    'Semana': w.label, 'Arquivo': w.fileName, 'Respondentes': w.respondents, 'Perguntas': w.questions, 'Pontos totais': w.totalPoints
+  })));
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, wsPeople, 'Ranking Individual');
+  XLSX.utils.book_append_sheet(wb, wsFilial, 'Por Filial');
+  XLSX.utils.book_append_sheet(wb, wsWeek, 'Resumo Semanal');
+  const monthTag = new Date().toISOString().slice(0,7);
+  XLSX.writeFile(wb, `gamificacao_consolidado_${monthTag}.xlsx`);
+}
+</script>
+</body>
+</html>
